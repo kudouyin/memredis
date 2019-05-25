@@ -1,3 +1,5 @@
+package memredis
+
 import (
   "fmt"
 )
