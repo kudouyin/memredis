@@ -22,8 +22,10 @@ func NewWorkerPool(worklen int) *WorkerPool {
 func (wp *WorkerPool) Run() {
 	for i:= 0; i < wp.workerlen; i ++ {
 		//fmt.Println("new a worker, index: ", i)
-		worker := NewWorker()
-		worker.Run(wp.WorkerQueue)
+		worker := NewWorker(cacheHandler)
+		// 放入workerQueue
+		wp.WorkerQueue <- worker
+		worker.Run()
 	}
 	go wp.Dispatch()
 }
@@ -46,6 +48,7 @@ func (wp *WorkerPool) Dispatch() {
 				fmt.Println("worker epoll_ctl error: ", e)
 				os.Exit(1)
 			}
+			wp.WorkerQueue <- worker
 		}
 	}
 }

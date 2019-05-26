@@ -17,10 +17,10 @@ type Worker struct {
 	handler WorkerHandler
 }
 
-func NewWorker() *Worker {
+func NewWorker(handler WorkerHandler) *Worker {
 	worker := &Worker{
 		eventChan: make(chan int),
-		handler: &WorkerHandlerImpl{},
+		handler: handler,
 	}
 	epfd, e := syscall.EpollCreate1(0)
 	if e != nil {
@@ -33,12 +33,10 @@ func NewWorker() *Worker {
 	return worker
 }
 
-func (w *Worker) Run(wq chan *Worker) {
+func (w *Worker) Run() {
 	go func() {
 		for {
 			fmt.Println("into for")
-			wq <- w
-			fmt.Println("select start")
 			var events [MaxEpollEvents]syscall.EpollEvent
 			nevents, e := syscall.EpollWait(w.event_base_fd, events[:], -1)
 			if e != nil {
