@@ -34,7 +34,7 @@ func (s *SocketServer) Serve() {
 		os.Exit(1)
 	}
 
-	fmt.Println(s.Addr)
+	fmt.Println("addr:", s.Addr)
 	syscall.Bind(fd, s.Addr)
 	syscall.Listen(fd, LISTENN)
 
@@ -52,10 +52,6 @@ func (s *SocketServer) Serve() {
 		os.Exit(1)
 	}
 
-	//init worker pool
-	workerpool := NewWorkerPool(workerln)
-	workerpool.Run()
-
 	fmt.Println("hahahah")
 	for {
 		nevents, e := syscall.EpollWait(epfd, events[:], -1)
@@ -72,7 +68,7 @@ func (s *SocketServer) Serve() {
 				}
 				syscall.SetNonblock(connFd, true)
 				fmt.Println("accept success")
-				workerpool.connFdChan <- connFd
+				connFdChan <- connFd
 			}
 		}
 	}

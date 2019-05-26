@@ -6,23 +6,24 @@ import (
 	"os"
 )
 
+var connFdChan chan int = make(chan int)
+
+
 type WorkerPool struct {
 	workerlen int
-	connFdChan chan int
 	WorkerQueue chan *Worker
 }
 
 func NewWorkerPool(worklen int) *WorkerPool {
 	return &WorkerPool{
 		workerlen: worklen,
-		connFdChan: make(chan int),
 		WorkerQueue: make(chan *Worker, workerln),
 	}
 }
-func (wp *WorkerPool) Run() {
+func (wp *WorkerPool) Run(handler WorkerHandler) {
 	for i:= 0; i < wp.workerlen; i ++ {
 		//fmt.Println("new a worker, index: ", i)
-		worker := NewWorker(cacheHandler)
+		worker := NewWorker(handler)
 		// 放入workerQueue
 		wp.WorkerQueue <- worker
 		worker.Run()
@@ -33,7 +34,7 @@ func (wp *WorkerPool) Run() {
 func (wp *WorkerPool) Dispatch() {
 	for {
 		select {
-		case connFd:= <- wp.connFdChan:
+		case connFd:= <- connFdChan:
 			fmt.Println("recevie a new fd: ", connFd)
 			// get a worker'
 			worker := <- wp.WorkerQueue

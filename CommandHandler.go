@@ -8,15 +8,10 @@ import (
 	"fmt"
 )
 var separatorBytes = []byte(" ")
-var cacheHandler *CommandHandler
 
 type CommandHandler struct {
 	peerPicker PeerPicker
 	cachetable *CacheTable
-}
-
-func RegisterCommandHanlder(handler *CommandHandler) {
-	cacheHandler = handler
 }
 
 func NewCommandHandler(peerPicker PeerPicker, table *CacheTable) *CommandHandler {
