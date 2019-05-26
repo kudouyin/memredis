@@ -28,8 +28,8 @@ func (commandHandler *CommandHandler) handle(connFd int) {
 	peer, ok := commandHandler.peerPicker.PickPeer(key)
 	if !ok {
 		fmt.Println("cannot find peer")
-		ok := commandHandler.Exec(params)
-		commandHandler.writeResult(connFd, ok)
+		isok := commandHandler.Exec(params)
+		commandHandler.writeResult(connFd, isok)
 	}else{
 		fmt.Println("find peer", peer)
 		commandHandler.transmit(peer)

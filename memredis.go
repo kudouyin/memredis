@@ -3,13 +3,16 @@ package memredis
 import (
 	"syscall"
 	"net"
+	"fmt"
 )
 
 func Run () {
-	addr := syscall.SockaddrInet4{Port: 3022}
+	port := 3000
+	addr := syscall.SockaddrInet4{Port: port}
 	copy(addr.Addr[:], net.ParseIP("0.0.0.0").To4())
-	peers := NewServerPeers("0.0.0.0:3018", nil)
-	//peers.SetPeers("0.0.0.0:3015", "0.0.0.0:3011")
+	fmt.Println(addr.Addr[:])
+	peers := NewServerPeers("0.0.0.0:3000" , nil)
+	//peers.SetPeers("0.0.0.0:3022", "0.0.0.0:3023")
 
 	commandHandler := NewCommandHandler(peers, Cachetable)
 
