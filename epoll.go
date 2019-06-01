@@ -1,3 +1,5 @@
+// +build linux
+
 package memredis
 
 import (
@@ -12,7 +14,6 @@ func event_base_create() int {
 		fmt.Println("create event_base error: ", e)
 		os.Exit(1)
 	}
-	defer syscall.Close(epfd)
 	return epfd
 }
 
@@ -20,7 +21,6 @@ func event_add(connFd int, event_base_fd int) {
 	var event syscall.EpollEvent
 	event.Events = syscall.EPOLLIN | EPOLLET
 	event.Fd = int32(connFd)
-	fmt.Println(event_base_fd)
 	if e := syscall.EpollCtl(event_base_fd, syscall.EPOLL_CTL_ADD, connFd, &event); e != nil {
 		fmt.Println("add event error: ", e)
 		os.Exit(1)

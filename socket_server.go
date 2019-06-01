@@ -18,9 +18,6 @@ type SocketServer struct {
 }
 
 func (s *SocketServer) Serve() {
-	var event syscall.EpollEvent
-	var events [MaxEpollEvents]syscall.EpollEvent
-
 	//create socket and bind addr
 	fd, err := syscall.Socket(syscall.AF_INET, syscall.O_NONBLOCK|syscall.SOCK_STREAM, 0)
 	if err != nil {
@@ -39,26 +36,12 @@ func (s *SocketServer) Serve() {
 	syscall.Listen(fd, LISTENN)
 
 	// create epoll fd
-	epfd, e := syscall.EpollCreate1(0)
-	if e != nil {
-		fmt.Println("epoll_create1: ", e)
-		os.Exit(1)
-	}
+	epfd := event_base_create()
 	defer syscall.Close(epfd)
-	event.Events = syscall.EPOLLIN
-	event.Fd = int32(fd)
-	if e = syscall.EpollCtl(epfd, syscall.EPOLL_CTL_ADD, fd, &event); e != nil {
-		fmt.Println("epoll_ctl: ", e)
-		os.Exit(1)
-	}
 
-	fmt.Println("hahahah")
+	event_add(fd, epfd)
 	for {
-		nevents, e := syscall.EpollWait(epfd, events[:], -1)
-		if e != nil {
-			fmt.Println("epoll wait:", e)
-			break
-		}
+		nevents, events := event_wait(epfd)
 		for ev := 0; ev < nevents; ev ++ {
 			if int(events[ev].Fd) == fd {
 				connFd, _, err := syscall.Accept(fd)

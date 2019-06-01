@@ -91,6 +91,8 @@ func (commandHandler *CommandHandler) SET(params [][]byte) (ok bool){
 		return false
 	}
 	value := string(params[3])
-	fmt.Println("params is ", key, time.Duration(lifeSpan), value)
-	return commandHandler.cachetable.Set(key, time.Duration(lifeSpan), value)
+	newLifeSpan := time.Duration(lifeSpan) * time.Second
+
+	fmt.Println("all params is ", key, newLifeSpan, value)
+	return commandHandler.cachetable.Set(key, newLifeSpan, value)
 }
