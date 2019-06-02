@@ -22,11 +22,7 @@ func NewWorker(handler WorkerHandler) *Worker {
 		eventChan: make(chan int),
 		handler: handler,
 	}
-	epfd, e := syscall.EpollCreate1(0)
-	if e != nil {
-		fmt.Println("epoll_create1 error: ", e)
-		os.Exit(1)
-	}
+	epfd := event_base_create()
 	worker.event_base_fd = epfd
 	//fmt.Println("new worker and epollfd success")
 

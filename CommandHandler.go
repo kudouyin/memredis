@@ -6,6 +6,7 @@ import (
 	"time"
 	"strconv"
 	"fmt"
+	"encoding/json"
 )
 var separatorBytes = []byte(" ")
 
@@ -28,8 +29,8 @@ func (commandHandler *CommandHandler) handle(connFd int) {
 	peer, ok := commandHandler.peerPicker.PickPeer(key)
 	if !ok {
 		fmt.Println("cannot find peer")
-		isok := commandHandler.Exec(params)
-		commandHandler.writeResult(connFd, isok)
+		ok, result := commandHandler.Exec(params)
+		commandHandler.writeResult(connFd, ok, result)
 	}else{
 		fmt.Println("find peer", peer)
 		commandHandler.transmit(peer)
@@ -55,14 +56,18 @@ func (commandHandler *CommandHandler) readCommand(connFd int) (params [][]byte){
 	}
 	if nbytes > 0{
 		params := bytes.Split(buf[:nbytes], separatorBytes)
-		fmt.Println("params is ", string(params[1]))
 		return params
 	}
 	return nil
 }
 
-func (CommandHandler *CommandHandler) writeResult(connFd int, ok bool) {
-	syscall.Write(connFd, []byte(strconv.FormatBool(ok)))
+func (CommandHandler *CommandHandler) writeResult(connFd int, ok bool, result string) {
+
+	var buffer bytes.Buffer
+	buffer.Write([]byte(strconv.FormatBool(ok)))
+	buffer.Write(separatorBytes)
+	buffer.Write(([]byte(result)))
+	syscall.Write(connFd, buffer.Bytes())
 }
 
 
@@ -75,12 +80,16 @@ func (commandHandler *CommandHandler) lookupCache(key string) (interface{}, bool
 
 }
 
-func (commandHandler *CommandHandler) Exec(params [][]byte) (ok bool){
+func (commandHandler *CommandHandler) Exec(params [][]byte) (bool, string){
 	switch  {
 	case bytes.Equal(params[0], []byte("SET")):
-		return commandHandler.SET(params)
+		return commandHandler.SET(params), ""
+
+	case bytes.Equal(params[0], []byte("GET")):
+		return commandHandler.GET(params)
+
 	}
-	return false
+	return false, ""
 }
 
 func (commandHandler *CommandHandler) SET(params [][]byte) (ok bool){
@@ -95,4 +104,15 @@ func (commandHandler *CommandHandler) SET(params [][]byte) (ok bool){
 
 	fmt.Println("all params is ", key, newLifeSpan, value)
 	return commandHandler.cachetable.Set(key, newLifeSpan, value)
+}
+
+func (commandHandler *CommandHandler) GET(params [][]byte) (bool, string){
+	key := string(params[1])
+	item, err := commandHandler.cachetable.Get(key)
+	if err != nil {
+		fmt.Println(err)
+		return false, ""
+	}
+	mjson, _ := json.Marshal(item.data)
+	return true, string(mjson)
 }
