@@ -84,7 +84,8 @@ func (commandHandler *CommandHandler) Exec(params [][]byte) (bool, string){
 	switch  {
 	case bytes.Equal(params[0], []byte("SET")):
 		return commandHandler.SET(params), ""
-
+	case bytes.Equal(params[0], []byte("SADD")):
+		return commandHandler.SADD(params), ""
 	case bytes.Equal(params[0], []byte("GET")):
 		return commandHandler.GET(params)
 
@@ -106,6 +107,20 @@ func (commandHandler *CommandHandler) SET(params [][]byte) (ok bool){
 	return commandHandler.cachetable.Set(key, newLifeSpan, value)
 }
 
+func (commandHandler *CommandHandler) SADD(params [][]byte) (ok bool){
+	key := string(params[1])
+	lifeSpan, err:= strconv.Atoi(string(params[2]))
+	if err != nil {
+		fmt.Println("参数转换错误")
+		return false
+	}
+	value := string(params[3])
+	newLifeSpan := time.Duration(lifeSpan) * time.Second
+
+	fmt.Println("all params is ", key, newLifeSpan, value)
+	return commandHandler.cachetable.SAdd(key, newLifeSpan, value)
+}
+
 func (commandHandler *CommandHandler) GET(params [][]byte) (bool, string){
 	key := string(params[1])
 	item, err := commandHandler.cachetable.Get(key)
@@ -113,6 +128,11 @@ func (commandHandler *CommandHandler) GET(params [][]byte) (bool, string){
 		fmt.Println(err)
 		return false, ""
 	}
-	mjson, _ := json.Marshal(item.data)
+	fmt.Println("get result before: ", item.data)
+	mjson, err := json.Marshal(item.data)
+	if err != nil {
+		fmt.Println("error:", err)
+	}
+	fmt.Println("get result: ", mjson)
 	return true, string(mjson)
 }

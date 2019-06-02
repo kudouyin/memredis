@@ -24,14 +24,6 @@ func (table *CacheTable) Foreach(trans func(key interface{}, item *CacheItem)) {
 	}
 }
 
-
-func (table *CacheTable) Add(key interface{}, lifeSpan time.Duration, data interface{}){
-	item := NewCacheItem(key, lifeSpan, data)
-	table.Lock()
-	table.items[key] = item
-	table.Unlock()
-}
-
 func (table *CacheTable) Exists(key interface{}) bool {
 	table.RLock()
 	defer table.RUnlock()
@@ -50,13 +42,18 @@ func (table *CacheTable) Get(key interface{}, args ...interface{}) (*CacheItem, 
 	return nil, ErrKeyNotFound
 }
 
-func (table *CacheTable) Set(key interface{},  lifeSpan time.Duration, data interface{}) (ok bool){
+func (table *CacheTable) Set(key string,  lifeSpan time.Duration, data interface{}) (ok bool){
 	table.Lock()
 	item, ok := table.items[key]
 	if !ok {
 		item = NewCacheItem(key, lifeSpan, data)
 	}else{
+		if(item.itemType != ItemType_STRING) {
+			return false
+		}
+		item.lifeSpan = lifeSpan
 		item.data = data
+		item.KeepAlive()
 	}
 	table.items[key] = item
 	table.Unlock()
@@ -68,6 +65,33 @@ func (table *CacheTable) Set(key interface{},  lifeSpan time.Duration, data inte
 
 	return true
 }
+
+func (table *CacheTable) SAdd(key string, lifeSpan time.Duration, data string)(ok bool) {
+	table.Lock()
+	item, ok := table.items[key]
+	if !ok {
+		item = NewCacheSetItem(key, lifeSpan, data)
+	}else{
+		if(item.itemType != ItemType_SET){
+			return false
+		}
+		item.lifeSpan = lifeSpan
+		dataMap := item.data.(map[string]*Empty)
+		dataMap[data] = &Empty{}
+		item.KeepAlive()
+	}
+	table.items[key] = item
+	table.Unlock()
+
+	// update expire check time
+	if lifeSpan > 0 && (lifeSpan < table.cleanupInterval || table.cleanupInterval == 0) {
+		go table.expirationCheck()
+	}
+
+	return true
+
+}
+
 
 func (table *CacheTable) delete(key interface{}) (*CacheItem, error) {
 	table.Lock()

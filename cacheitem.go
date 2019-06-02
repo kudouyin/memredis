@@ -5,20 +5,32 @@ import (
 	"time"
 )
 
+type Empty struct {
+
+}
+
+type ItemType int
+const (
+	ItemType_STRING ItemType = 0
+	ItemType_SET ItemType = 1
+	ItemType_LIST ItemType = 2
+)
+
 type CacheItem struct {
 	sync.RWMutex
 
-	key interface{}
+	key string
 	data interface{}
 	lifeSpan time.Duration
 	createdOn time.Time
 	accessedOn time.Time
 	accessCount int64
+	itemType ItemType
 
 	aboutToExpire func(key interface{})
 }
 
-func NewCacheItem(key interface{}, lifeSpan time.Duration, data interface{}) *CacheItem{
+func NewCacheItem(key string, lifeSpan time.Duration, data interface{}) *CacheItem{
 	t := time.Now()
 	return &CacheItem{
 		key: key,
@@ -28,6 +40,24 @@ func NewCacheItem(key interface{}, lifeSpan time.Duration, data interface{}) *Ca
 		accessCount: 0,
 		aboutToExpire: nil,
 		data: data,
+		itemType: ItemType_STRING,
+	}
+}
+
+// use map to implement a set(value is empty struct)
+func NewCacheSetItem(key string, lifeSpan time.Duration, data string) *CacheItem {
+	t := time.Now()
+	dataMap := make(map[string]*Empty)
+	dataMap[data] = &Empty{}
+	return &CacheItem{
+		key: key,
+		lifeSpan:lifeSpan,
+		createdOn: t,
+		accessedOn: t,
+		accessCount: 0,
+		aboutToExpire: nil,
+		data: dataMap,
+		itemType: ItemType_SET,
 	}
 }
 
