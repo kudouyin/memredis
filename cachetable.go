@@ -13,7 +13,7 @@ type CacheTable struct{
 
 	cleanupTimer *time.Timer
 
-	cleanupInternal time.Duration
+	cleanupInterval time.Duration
 }
 
 func (table *CacheTable) Foreach(trans func(key interface{}, item *CacheItem)) {
@@ -62,7 +62,7 @@ func (table *CacheTable) Set(key interface{},  lifeSpan time.Duration, data inte
 	table.Unlock()
 
 	// update expire check time
-	if lifeSpan > 0 && (lifeSpan < table.cleanupInternal || table.cleanupInternal == 0) {
+	if lifeSpan > 0 && (lifeSpan < table.cleanupInterval || table.cleanupInterval == 0) {
 		go table.expirationCheck()
 	}
 
@@ -119,7 +119,7 @@ func (table *CacheTable) expirationCheck() {
 		}
 	}
 	// update next check time
-	table.cleanupInternal = smallestDuration
+	table.cleanupInterval = smallestDuration
 	if smallestDuration > 0 {
 		table.cleanupTimer = time.AfterFunc(smallestDuration, func() {
 			go table.expirationCheck()
