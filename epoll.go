@@ -5,34 +5,34 @@ package memredis
 import (
 	"syscall"
 	"fmt"
-	"os"
 )
 
-func event_base_create() int {
+func event_base_create() (int, error) {
 	epfd, e := syscall.EpollCreate1(0)
 	if e != nil {
 		fmt.Println("create event_base error: ", e)
-		os.Exit(1)
+		return -1, ErrCreateEventBase
 	}
-	return epfd
+	return epfd, nil
 }
 
-func event_add(connFd int, event_base_fd int) {
+func event_add(connFd int, event_base_fd int) error {
 	var event syscall.EpollEvent
 	event.Events = syscall.EPOLLIN | EPOLLET
 	event.Fd = int32(connFd)
 	if e := syscall.EpollCtl(event_base_fd, syscall.EPOLL_CTL_ADD, connFd, &event); e != nil {
 		fmt.Println("add event error: ", e)
-		os.Exit(1)
+		return  ErrAddEvent
 	}
+	return nil
 }
 
-func event_wait(event_base_fd int) (int, [MaxEpollEvents]syscall.EpollEvent){
+func event_wait(event_base_fd int) (int, *[MaxEpollEvents]syscall.EpollEvent, error){
 	var events [MaxEpollEvents]syscall.EpollEvent
 	nevents, e := syscall.EpollWait(event_base_fd, events[:], -1)
 	if e != nil {
 		fmt.Println("epoll wait error:", e)
-		os.Exit(1)
+		return 0, nil, ErrWaitEvent
 	}
-	return nevents, events
+	return nevents, &events, nil
 }

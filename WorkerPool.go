@@ -2,6 +2,7 @@ package memredis
 
 import (
 	"fmt"
+	"syscall"
 )
 
 var connFdChan chan int = make(chan int)
@@ -22,10 +23,14 @@ func NewWorkerPool(worklen int) *WorkerPool {
 func (wp *WorkerPool) Run(handler WorkerHandler) {
 	for i:= 0; i < wp.workerlen; i ++ {
 		//fmt.Println("new a worker, index: ", i)
-		worker := NewWorker(handler)
-		// 放入workerQueue
-		wp.WorkerQueue <- worker
-		worker.Run()
+		worker, err := NewWorker(handler)
+		if err != nil {
+			fmt.Printf("create %d worker failed\n", i)
+		}else{
+			// 放入workerQueue
+			wp.WorkerQueue <- worker
+			worker.Run()
+		}
 	}
 	go wp.Dispatch()
 }
@@ -39,7 +44,11 @@ func (wp *WorkerPool) Dispatch() {
 			worker := <- wp.WorkerQueue
 
 			// register to event base
-			event_add(connFd, worker.event_base_fd)
+			err := event_add(connFd, worker.event_base_fd)
+			if err != nil {
+				fmt.Printf("connFd: %d cannot be added into worker's event loop, so will be closed\n", connFd)
+				syscall.Close(connFd)
+			}
 
 			wp.WorkerQueue <- worker
 		}

@@ -1,9 +1,7 @@
 package memredis
 
 import (
-	"syscall"
 	"fmt"
-	"os"
 )
 
 type WorkerHandler interface {
@@ -17,28 +15,26 @@ type Worker struct {
 	handler WorkerHandler
 }
 
-func NewWorker(handler WorkerHandler) *Worker {
+func NewWorker(handler WorkerHandler) (*Worker, error) {
 	worker := &Worker{
 		eventChan: make(chan int),
 		handler: handler,
 	}
-	epfd := event_base_create()
+	epfd, err := event_base_create()
+	if err != nil {
+		return nil, err
+	}
 	worker.event_base_fd = epfd
 	//fmt.Println("new worker and epollfd success")
 
-	return worker
+	return worker, nil
 }
 
 func (w *Worker) Run() {
 	go func() {
 		for {
 			fmt.Println("into for")
-			var events [MaxEpollEvents]syscall.EpollEvent
-			nevents, e := syscall.EpollWait(w.event_base_fd, events[:], -1)
-			if e != nil {
-				fmt.Println("epoll wait error:", e)
-				os.Exit(1)
-			}
+			nevents, events, _ := event_wait(w.event_base_fd)
 			for ev := 0; ev < nevents; ev++ {
 				w.handler.handle(int(events[ev].Fd))
 			}

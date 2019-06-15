@@ -36,15 +36,22 @@ func (s *SocketServer) Serve() {
 	syscall.Listen(fd, LISTENN)
 
 	// create epoll fd
-	epfd := event_base_create()
+	epfd, err:= event_base_create()
+	if err != nil {
+		os.Exit(1)
+	}
 	defer syscall.Close(epfd)
 
-	event_add(fd, epfd)
+	err = event_add(fd, epfd)
+	if err != nil {
+		os.Exit(1)
+	}
 	for {
-		nevents, events := event_wait(epfd)
+		nevents, events, _:= event_wait(epfd)
 		for ev := 0; ev < nevents; ev ++ {
 			if int(events[ev].Fd) == fd {
 				connFd, _, err := syscall.Accept(fd)
+				defer syscall.Close(connFd)
 				if err != nil {
 					fmt.Println("accept error: ", err)
 					continue
