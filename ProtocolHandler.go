@@ -79,6 +79,9 @@ func (protocolHandler *ProtocolHandler) readCommand(connFd int) (params [][]byte
 	return nil
 }
 
+//	|  boolean  |  binary
+//  ----------------------
+//	   success  |  data
 func (ProtocolHandler *ProtocolHandler) writeResult(connFd int, ok bool, result string) {
 
 	var buffer bytes.Buffer
