@@ -30,7 +30,7 @@ func (protocolHandler *ProtocolHandler) handle(connFd int) {
 		key := string(params[1])
 		peer, ok := protocolHandler.peerPicker.PickPeer(key)
 		if !ok {
-			fmt.Println("cannot find peer")
+			fmt.Println("cannot find key in other peer, will exec command in this peer")
 			ok, result := protocolHandler.Exec(params)
 			protocolHandler.writeResult(connFd, ok, result)
 		} else {
