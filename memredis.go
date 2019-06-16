@@ -14,12 +14,13 @@ func Run () {
 	peers := NewServerPeers("0.0.0.0:3011" , nil)
 	//peers.SetPeers("0.0.0.0:3022", "0.0.0.0:3023")
 
-	protocolHandler := NewProtocolHandler(peers, Cachetable)
+	cacheTable := NewCacheTable()
+	protocolHandler := NewProtocolHandler(peers, cacheTable)
 
 	//init worker pool
-	workerpool := NewWorkerPool(workerln)
-	workerpool.Run(protocolHandler)
+	workerPool := NewWorkerPool(workerln)
+	workerPool.Run(protocolHandler)
 
-	socket_server := &SocketServer{&addr}
-	socket_server.Serve()
+	socketServer := &SocketServer{&addr}
+	socketServer.Serve()
 }

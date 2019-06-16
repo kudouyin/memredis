@@ -13,13 +13,13 @@ var separatorBytes = []byte(" ")
 
 type ProtocolHandler struct {
 	peerPicker PeerPicker
-	cachetable *CacheTable
+	cacheTable *CacheTable
 }
 
 func NewProtocolHandler(peerPicker PeerPicker, table *CacheTable) *ProtocolHandler {
 	return &ProtocolHandler{
 		peerPicker: peerPicker,
-		cachetable: table,
+		cacheTable: table,
 	}
 }
 
@@ -37,12 +37,12 @@ func (protocolHandler *ProtocolHandler) handle(connFd int) {
 			fmt.Println("find peer", peer)
 			protocolHandler.transmit(peer)
 		}
-		check()
+		protocolHandler.check()
 	}
 }
 
-func check() {
-	for k, v := range Cachetable.items {
+func (protocolHandler *ProtocolHandler)check() {
+	for k, v := range protocolHandler.cacheTable.items {
 		fmt.Println("cache ", k, v.data)
 	}
 }
@@ -93,7 +93,7 @@ func (ProtocolHandler *ProtocolHandler) writeResult(connFd int, ok bool, result 
 
 
 func (protocolHandler *ProtocolHandler) lookupCache(key string) (interface{}, bool){
-	value, err := protocolHandler.cachetable.Get(key)
+	value, err := protocolHandler.cacheTable.Get(key)
 	if err != nil {
 		return nil, false
 	}
@@ -125,7 +125,7 @@ func (protocolHandler *ProtocolHandler) SET(params [][]byte) (ok bool){
 	newLifeSpan := time.Duration(lifeSpan) * time.Second
 
 	fmt.Println("all params is ", key, newLifeSpan, value)
-	return protocolHandler.cachetable.Set(key, newLifeSpan, value)
+	return protocolHandler.cacheTable.Set(key, newLifeSpan, value)
 }
 
 func (protocolHandler *ProtocolHandler) SADD(params [][]byte) (ok bool){
@@ -139,12 +139,12 @@ func (protocolHandler *ProtocolHandler) SADD(params [][]byte) (ok bool){
 	newLifeSpan := time.Duration(lifeSpan) * time.Second
 
 	fmt.Println("all params is ", key, newLifeSpan, value)
-	return protocolHandler.cachetable.SAdd(key, newLifeSpan, value)
+	return protocolHandler.cacheTable.SAdd(key, newLifeSpan, value)
 }
 
 func (protocolHandler *ProtocolHandler) GET(params [][]byte) (bool, string){
 	key := string(params[1])
-	item, err := protocolHandler.cachetable.Get(key)
+	item, err := protocolHandler.cacheTable.Get(key)
 	if err != nil {
 		fmt.Println(err)
 		return false, ""
