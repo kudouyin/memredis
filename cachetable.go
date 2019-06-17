@@ -49,13 +49,12 @@ func (table *CacheTable) Get(key interface{}, args ...interface{}) (*CacheItem, 
 	r, ok := table.items[key]
 	table.RUnlock()
 	if ok {
-		now := time.Now()
 		// 惰性删除
-		if r.lifeSpan != 0 && now.Sub(r.accessedOn) >= r.lifeSpan {
+		if r.isExpire() {
 			table.deleteInternal(key)
 			return nil, ErrKeyNotFound
 		}
-		r.KeepAlive()
+		r.accessUpdate()
 		return r, nil
 	}
 	return nil, ErrKeyNotFound
@@ -65,14 +64,14 @@ func (table *CacheTable) Set(key string,  lifeSpan time.Duration, data interface
 	table.Lock()
 	item, ok := table.items[key]
 	if !ok {
-		item = NewCacheItem(key, lifeSpan, data)
+		item = NewCacheStringItem(key, lifeSpan, data)
 	}else{
 		if(item.itemType != ItemType_STRING) {
 			return false
 		}
 		item.lifeSpan = lifeSpan
 		item.data = data
-		item.KeepAlive()
+		item.accessUpdate()
 	}
 	table.items[key] = item
 	table.Unlock()
@@ -92,7 +91,7 @@ func (table *CacheTable) SAdd(key string, lifeSpan time.Duration, data string)(o
 		item.lifeSpan = lifeSpan
 		dataMap := item.data.(map[string]*Empty)
 		dataMap[data] = &Empty{}
-		item.KeepAlive()
+		item.accessUpdate()
 	}
 	table.items[key] = item
 	table.Unlock()
@@ -175,8 +174,7 @@ func (table *CacheTable) expirationCheckAll() {
 			cnt += 1
 			// random check cleanupNum's key
 			if cnt <= table.cleanupNum {
-				now := time.Now()
-				if item.lifeSpan != 0 && now.Sub(item.accessedOn) >= item.lifeSpan {
+				if item.isExpire() {
 					table.deleteInternal(key)
 				}
 			}

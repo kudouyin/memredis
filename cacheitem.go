@@ -30,7 +30,7 @@ type CacheItem struct {
 	aboutToExpire func(key interface{})
 }
 
-func NewCacheItem(key string, lifeSpan time.Duration, data interface{}) *CacheItem{
+func NewCacheStringItem(key string, lifeSpan time.Duration, data interface{}) *CacheItem{
 	t := time.Now()
 	return &CacheItem{
 		key: key,
@@ -61,9 +61,17 @@ func NewCacheSetItem(key string, lifeSpan time.Duration, data string) *CacheItem
 	}
 }
 
-func (item *CacheItem) KeepAlive() {
+func (item *CacheItem) accessUpdate() {
 	item.Lock()
 	defer item.Unlock()
 	item.accessedOn = time.Now()
 	item.accessCount++
+}
+
+func (item *CacheItem) isExpire() bool {
+	// Maybe it is 'createdOn', not accessOn
+	if item.lifeSpan != 0 && time.Now().Sub(item.accessedOn) >= item.lifeSpan{
+		return true
+	}
+	return false
 }
