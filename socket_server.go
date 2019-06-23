@@ -19,7 +19,7 @@ type SocketServer struct {
 
 func (s *SocketServer) Serve() {
 	//create socket and bind addr
-	fd, err := syscall.Socket(syscall.AF_INET, syscall.O_NONBLOCK|syscall.SOCK_STREAM, 0)
+	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -47,9 +47,9 @@ func (s *SocketServer) Serve() {
 		os.Exit(1)
 	}
 	for {
-		nevents, events, _:= event_wait(epfd)
+		nevents, eventFds, _:= event_wait(epfd)
 		for ev := 0; ev < nevents; ev ++ {
-			if int(events[ev].Fd) == fd {
+			if int(eventFds[ev]) == fd {
 				connFd, _, err := syscall.Accept(fd)
 				defer syscall.Close(connFd)
 				if err != nil {

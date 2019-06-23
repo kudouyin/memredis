@@ -27,12 +27,16 @@ func event_add(connFd int, event_base_fd int) error {
 	return nil
 }
 
-func event_wait(event_base_fd int) (int, *[MaxEpollEvents]syscall.EpollEvent, error){
-	var events [MaxEpollEvents]syscall.EpollEvent
-	nevents, e := syscall.EpollWait(event_base_fd, events[:], -1)
+func event_wait(event_base_fd int) (int, *[MaxEpollEvents]int, error){
+	var epoll_events [MaxEpollEvents]syscall.EpollEvent
+	nevents, e := syscall.EpollWait(event_base_fd, epoll_events[:], -1)
 	if e != nil {
 		fmt.Println("epoll wait error:", e)
 		return 0, nil, ErrWaitEvent
 	}
-	return nevents, &events, nil
+	var eventFds [MaxEpollEvents] int
+	for i := 0; i < nevents; i++ {
+		eventFds[i] = int(epoll_events[i].Fd)
+	}
+	return nevents, &eventFds, nil
 }

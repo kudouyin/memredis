@@ -34,9 +34,9 @@ func (w *Worker) Run() {
 	go func() {
 		for {
 			fmt.Println("into for")
-			nevents, events, _ := event_wait(w.event_base_fd)
+			nevents, eventFds, _ := event_wait(w.event_base_fd)
 			for ev := 0; ev < nevents; ev++ {
-				w.handler.handle(int(events[ev].Fd))
+				w.handler.handle(eventFds[ev])
 			}
 		}
 	}()

@@ -116,13 +116,17 @@ func (protocolHandler *ProtocolHandler) Exec(params [][]byte) (bool, string){
 
 func (protocolHandler *ProtocolHandler) SET(params [][]byte) (ok bool){
 	key := string(params[1])
-	lifeSpan, err:= strconv.Atoi(string(params[2]))
-	if err != nil {
-		fmt.Println("参数转换错误")
-		return false
+	value := string(params[2])
+	newLifeSpan := time.Duration(0)
+	fmt.Println("param length:", len(params))
+	if len(params) == 4 {
+		lifeSpan, err := strconv.Atoi(string(params[3]))
+		if err != nil {
+			fmt.Println("参数转换错误")
+			return false
+		}
+		newLifeSpan = time.Duration(lifeSpan) * time.Second
 	}
-	value := string(params[3])
-	newLifeSpan := time.Duration(lifeSpan) * time.Second
 
 	fmt.Println("all params is ", key, newLifeSpan, value)
 	return protocolHandler.cacheTable.Set(key, newLifeSpan, value)
@@ -130,13 +134,16 @@ func (protocolHandler *ProtocolHandler) SET(params [][]byte) (ok bool){
 
 func (protocolHandler *ProtocolHandler) SADD(params [][]byte) (ok bool){
 	key := string(params[1])
-	lifeSpan, err:= strconv.Atoi(string(params[2]))
-	if err != nil {
-		fmt.Println("参数转换错误")
-		return false
+	value := string(params[2])
+	newLifeSpan := time.Duration(0)
+	if len(params) == 4 {
+		lifeSpan, err := strconv.Atoi(string(params[3]))
+		if err != nil {
+			fmt.Println("参数转换错误")
+			return false
+		}
+		newLifeSpan = time.Duration(lifeSpan) * time.Second
 	}
-	value := string(params[3])
-	newLifeSpan := time.Duration(lifeSpan) * time.Second
 
 	fmt.Println("all params is ", key, newLifeSpan, value)
 	return protocolHandler.cacheTable.SAdd(key, newLifeSpan, value)

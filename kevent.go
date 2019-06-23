@@ -32,12 +32,16 @@ func event_add(connFd int, event_base_fd int) error {
 	return nil
 }
 
-func event_wait(event_base_fd int) (int, *[MaxEpollEvents]syscall.Kevent_t, error){
-	var events [MaxEpollEvents]syscall.Kevent_t
-	nevents, e := syscall.Kevent(event_base_fd, nil, events[:], nil)
+func event_wait(event_base_fd int) (int, *[MaxEpollEvents]int, error){
+	var kevents [MaxEpollEvents]syscall.Kevent_t
+	nevents, e := syscall.Kevent(event_base_fd, nil, kevents[:], nil)
 	if e != nil {
 		fmt.Println("kevent: ", e)
 		return 0, nil, ErrWaitEvent
 	}
-	return nevents, &events, nil
+	var eventFds [MaxEpollEvents] int
+	for i := 0; i < nevents; i++ {
+		eventFds[i] = int(kevents[i].Ident)
+	}
+	return nevents, &eventFds, nil
 }
