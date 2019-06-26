@@ -20,7 +20,7 @@ type CacheTable struct{
 func NewCacheTable() *CacheTable{
 	cacheTable := &CacheTable{
 		items: make(map[interface{}] *CacheItem),
-		cleanupInterval: 1000 * time.Millisecond,
+		cleanupInterval: 100000 * time.Millisecond,
 		cleanupNum: 100,
 	}
 	cacheTable.cleanupTimer = time.AfterFunc(cacheTable.cleanupInterval, func(){

@@ -1,19 +1,22 @@
 package memredis
 
 import (
-	"syscall"
-	"net"
 	"fmt"
+	"net"
 	"strconv"
+	"syscall"
 )
 
-func Run () {
-	port := 3012
-	addr := syscall.SockaddrInet4{Port: port}
+func Run (port *int, gossipPort *int, seedPort *int) {
+	addr := syscall.SockaddrInet4{Port: *port}
 	copy(addr.Addr[:], net.ParseIP("0.0.0.0").To4())
-	fmt.Println(addr.Addr[:])
-	peers := NewServerPeers("0.0.0.0"+strconv.Itoa(port) , nil)
-	//peers.SetPeers("0.0.0.0:3022", "0.0.0.0:3023")
+	fmt.Println(addr.Addr)
+
+	addrString := "0.0.0.0:"+ strconv.Itoa(*port)
+	seedNodeAddr := "0.0.0.0:" + strconv.Itoa(*seedPort)
+	peers := NewServerPeers(addrString, *gossipPort, seedNodeAddr,nil)
+	// when use gossip to manage nodes, we will not to set peer by manual
+	//peers.SetPeers(addrString)
 
 	cacheTable := NewCacheTable()
 	protocolHandler := NewProtocolHandler(peers, cacheTable)

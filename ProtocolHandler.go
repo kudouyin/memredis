@@ -48,7 +48,7 @@ func (protocolHandler *ProtocolHandler)check() {
 }
 
 func (protocolHandler *ProtocolHandler) transmit(peer string) {
-
+	fmt.Println("proxy to other peer")
 }
 
 //	[x][x][x][x][x][x][x][x]
