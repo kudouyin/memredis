@@ -7,14 +7,13 @@ import (
 	"syscall"
 )
 
-func Run (port *int, gossipPort *int, seedPort *int) {
+func Run (port *int, gossipPort *int, seedNodeAddr *string) {
 	addr := syscall.SockaddrInet4{Port: *port}
 	copy(addr.Addr[:], net.ParseIP("0.0.0.0").To4())
 	fmt.Println(addr.Addr)
 
 	addrString := "0.0.0.0:"+ strconv.Itoa(*port)
-	seedNodeAddr := "0.0.0.0:" + strconv.Itoa(*seedPort)
-	peers := NewServerPeers(addrString, *gossipPort, seedNodeAddr,nil)
+	peers := NewServerPeers(addrString, *gossipPort, *seedNodeAddr,nil)
 	// when use gossip to manage nodes, we will not to set peer by manual
 	//peers.SetPeers(addrString)
 
