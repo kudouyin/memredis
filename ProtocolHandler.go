@@ -1,13 +1,14 @@
 package memredis
 
 import (
-	"syscall"
 	"bytes"
-	"time"
-	"strconv"
-	"fmt"
-	"encoding/json"
 	"encoding/binary"
+	"encoding/json"
+	"fmt"
+	"strconv"
+	"strings"
+	"syscall"
+	"time"
 )
 var separatorBytes = []byte(" ")
 
@@ -25,19 +26,23 @@ func NewProtocolHandler(peerPicker PeerPicker, table *CacheTable) *ProtocolHandl
 
 
 func (protocolHandler *ProtocolHandler) handle(connFd int) {
-	params := protocolHandler.readCommand(connFd)
-	if params != nil {
-		key := string(params[1])
-		peer, ok := protocolHandler.peerPicker.PickPeer(key)
-		if !ok {
-			fmt.Println("cannot find key in other peer, will exec command in this peer")
-			ok, result := protocolHandler.Exec(params)
-			protocolHandler.writeResult(connFd, ok, result)
-		} else {
-			fmt.Println("find peer", peer)
-			protocolHandler.transmit(peer)
+	data := protocolHandler.readData(connFd)
+	if data != nil {
+		params := bytes.Split(data, separatorBytes)
+		if params != nil {
+			key := string(params[1])
+			peer, ok := protocolHandler.peerPicker.PickPeer(key)
+			if !ok {
+				fmt.Println("cannot find key in other peer, will exec command in this peer")
+				ok, result := protocolHandler.Exec(params)
+				data := []byte(strconv.FormatBool(ok) + " " + result)
+				protocolHandler.writeData(connFd, data)
+			} else {
+				fmt.Println("find peer", peer)
+				protocolHandler.transmit(connFd, peer, data)
+			}
+			protocolHandler.check()
 		}
-		protocolHandler.check()
 	}
 }
 
@@ -47,8 +52,27 @@ func (protocolHandler *ProtocolHandler)check() {
 	}
 }
 
-func (protocolHandler *ProtocolHandler) transmit(peer string) {
+func (protocolHandler *ProtocolHandler) transmit(connFd int, peer string, data []byte) {
 	fmt.Println("proxy to other peer")
+	addrs := strings.Split(peer, ":")
+	//ip := strings.Split(addrs[0], ".")
+	port, _ := strconv.Atoi(addrs[1])
+	address := syscall.SockaddrInet4{
+		//Addr: []byte(ip.String()),
+		Port: port,
+
+	}
+	peerFd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)
+	if err != nil {
+		fmt.Println(err)
+		responseData := []byte(strconv.FormatBool(false))
+		protocolHandler.writeData(connFd, responseData)
+		return
+	}
+	syscall.Connect(peerFd, &address)
+	protocolHandler.writeData(peerFd, data)
+	responseData := protocolHandler.readData(peerFd)
+	protocolHandler.writeData(connFd, responseData)
 }
 
 //	[x][x][x][x][x][x][x][x]
@@ -56,7 +80,7 @@ func (protocolHandler *ProtocolHandler) transmit(peer string) {
 //	|  4-byte  ||  N-byte
 //	---------------------------
 //	   size         data
-func (protocolHandler *ProtocolHandler) readCommand(connFd int) (params [][]byte){
+func (protocolHandler *ProtocolHandler) readData(connFd int) (data []byte){
 	var lenSlice [4]byte
 	_, e := syscall.Read(connFd, lenSlice[:])
 	if e != nil {
@@ -72,22 +96,26 @@ func (protocolHandler *ProtocolHandler) readCommand(connFd int) (params [][]byte
 			return nil
 		}
 		if nbytes > 0 {
-			params := bytes.Split(buf[:nbytes], separatorBytes)
-			return params
+			data = buf[:nbytes]
+			return data
 		}
 	}
 	return nil
 }
 
-//	|  boolean  |  binary
-//  ----------------------
-//	   success  |  data
-func (ProtocolHandler *ProtocolHandler) writeResult(connFd int, ok bool, result string) {
+//	[x][x][x][x][x][x][x][x]
+//	|  (int32) ||  (binary)
+//	|  4-byte  ||  N-byte
+//	---------------------------
+//	   size         data(success, result)
+func (ProtocolHandler *ProtocolHandler) writeData(connFd int, data []byte) {
+	size := make([]byte, 4)
+	binary.BigEndian.PutUint32(size, uint32(len(data)))
+	fmt.Println("write size: ", size)
 
 	var buffer bytes.Buffer
-	buffer.Write([]byte(strconv.FormatBool(ok)))
-	buffer.Write(separatorBytes)
-	buffer.Write(([]byte(result)))
+	buffer.Write(size)
+	buffer.Write(data)
 	syscall.Write(connFd, buffer.Bytes())
 }
 
