@@ -52,13 +52,23 @@ func (protocolHandler *ProtocolHandler)check() {
 	}
 }
 
+func ipToAddrByte(ip string) [4]byte {
+	bits := strings.Split(ip, ".")
+	var ipBytes [4]byte
+	for  i := 0; i < 4; i ++ {
+		field, _ := strconv.Atoi(bits[i])
+		ipBytes[i] = uint8(field)
+	}
+	fmt.Println("peer ip is:", ipBytes)
+	return ipBytes
+}
+
 func (protocolHandler *ProtocolHandler) transmit(connFd int, peer string, data []byte) {
 	fmt.Println("proxy to other peer")
 	addrs := strings.Split(peer, ":")
-	//ip := strings.Split(addrs[0], ".")
 	port, _ := strconv.Atoi(addrs[1])
 	address := syscall.SockaddrInet4{
-		//Addr: []byte(ip.String()),
+		Addr: ipToAddrByte(addrs[0]),
 		Port: port,
 
 	}
