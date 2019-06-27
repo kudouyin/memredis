@@ -79,6 +79,7 @@ func (protocolHandler *ProtocolHandler) transmit(connFd int, peer string, data [
 		protocolHandler.writeData(connFd, responseData)
 		return
 	}
+	defer syscall.Close(peerFd)
 	syscall.Connect(peerFd, &address)
 	protocolHandler.writeData(peerFd, data)
 	responseData := protocolHandler.readData(peerFd)
