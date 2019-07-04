@@ -1,6 +1,7 @@
 package memredis
 
 import (
+	"encoding/json"
 	"sync"
 	"time"
 	"fmt"
@@ -44,10 +45,8 @@ func (table *CacheTable) Exists(key interface{}) bool {
 	return ok
 }
 
-func (table *CacheTable) GetItem(key interface{}, args ...interface{}) (*CacheItem, error) {
-	table.RLock()
+func (table *CacheTable) GetItemInternal(key interface{}, args ...interface{}) (*CacheItem, error) {
 	r, ok := table.items[key]
-	table.RUnlock()
 	if ok {
 		// 惰性删除
 		if r.isExpire() {
@@ -58,46 +57,6 @@ func (table *CacheTable) GetItem(key interface{}, args ...interface{}) (*CacheIt
 		return r, nil
 	}
 	return nil, ErrKeyNotFound
-}
-
-func (table *CacheTable) Set(key string,  lifeSpan time.Duration, data interface{}) (ok bool, info string){
-	table.Lock()
-	item, ok := table.items[key]
-	if !ok {
-		item = NewCacheStringItem(key, lifeSpan, data)
-	}else{
-		if(item.itemType != ItemType_STRING) {
-			return false, "类型不匹配"
-		}
-		item.lifeSpan = lifeSpan
-		item.data = data
-		item.accessUpdate()
-	}
-	table.items[key] = item
-	table.Unlock()
-
-	return true, ""
-}
-
-func (table *CacheTable) SAdd(key string, lifeSpan time.Duration, data string)(ok bool, info string) {
-	table.Lock()
-	item, ok := table.items[key]
-	if !ok {
-		item = NewCacheSetItem(key, lifeSpan, data)
-	}else{
-		if(item.itemType != ItemType_SET){
-			return false, "类型不匹配"
-		}
-		item.lifeSpan = lifeSpan
-		dataMap := item.data.(map[string]*Empty)
-		dataMap[data] = &Empty{}
-		item.accessUpdate()
-	}
-	table.items[key] = item
-	table.Unlock()
-
-	return true, ""
-
 }
 
 func (table *CacheTable) delete(key interface{}) (*CacheItem, error) {
@@ -184,4 +143,109 @@ func (table *CacheTable) expirationCheckAll() {
 		go table.expirationCheckAll()
 	})
 	fmt.Println("expiration check end")
+}
+
+
+
+func (table *CacheTable) Set(key string,  lifeSpan time.Duration, data interface{}) (ok bool, info string){
+	table.Lock()
+	defer table.Unlock()
+	item, ok := table.items[key]
+	if !ok {
+		item = NewCacheStringItem(key, lifeSpan, data)
+	}else{
+		if(item.itemType != ItemType_STRING) {
+			return false, "类型不匹配"
+		}
+		item.lifeSpan = lifeSpan
+		item.data = data
+		item.accessUpdate()
+	}
+	table.items[key] = item
+
+	return true, ""
+}
+
+func (table *CacheTable) Get(key string) (bool, string) {
+	table.RLock()
+	item, err := table.GetItemInternal(key)
+	table.RUnlock()
+	if err != nil {
+		fmt.Println(err)
+		return false, err.Error()
+	}
+	fmt.Println("get result before: ", item.data)
+	data, ok := item.data.(string)
+	if !ok {
+		errorInfo := key + "is not a string value type"
+		fmt.Println(errorInfo)
+		return false, errorInfo
+	}
+	return true, data
+}
+
+func (table *CacheTable) SAdd(key string, lifeSpan time.Duration, data string)(ok bool, info string) {
+	table.Lock()
+	defer table.Unlock()
+	item, ok := table.items[key]
+	if !ok {
+		item = NewCacheSetItem(key, lifeSpan, data)
+	}else{
+		if(item.itemType != ItemType_SET){
+			return false, "类型不匹配"
+		}
+		item.lifeSpan = lifeSpan
+		dataMap := item.data.(map[string]*Empty)
+		dataMap[data] = &Empty{}
+		item.accessUpdate()
+	}
+	table.items[key] = item
+
+	return true, ""
+
+}
+
+func (table *CacheTable) SMEMBERS(key string) (bool, string) {
+	table.RLock()
+	item, err := table.GetItemInternal(key)
+	table.RUnlock()
+	if err != nil {
+		return false, err.Error()
+	}
+	data, ok := item.data.(map[string]*Empty)
+	if !ok {
+		errorInfo := key + " is not a set value type"
+		fmt.Println(errorInfo)
+		return false, errorInfo
+	}
+	keySet := make([]string, 0, len(data))
+	for k := range data {
+		keySet = append(keySet, k)
+	}
+	mjson, err := json.Marshal(keySet)
+	if err != nil {
+		fmt.Println("error:", err)
+	}
+	fmt.Println("get result: ", string(mjson))
+	return true, string(mjson)
+}
+
+func (table *CacheTable) SPOP(key string)(bool, string) {
+	table.Lock()
+	defer table.Unlock()
+	item, err := table.GetItemInternal(key)
+	if err != nil {
+		return false, err.Error()
+	}
+	data, ok := item.data.(map[string]*Empty)
+	if !ok {
+		errorInfo := key + " is not a set value type"
+		fmt.Println(errorInfo)
+		return false, errorInfo
+	}
+	for k := range data {
+		delete(data, k)
+		return true, k
+	}
+	return false, ""
 }

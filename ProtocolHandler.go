@@ -3,7 +3,6 @@ package memredis
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -134,15 +133,6 @@ func (ProtocolHandler *ProtocolHandler) writeData(connFd int, data []byte) {
 	syscall.Write(connFd, buffer.Bytes())
 }
 
-func (protocolHandler *ProtocolHandler) lookupCache(key string) (interface{}, bool) {
-	value, err := protocolHandler.cacheTable.GetItem(key)
-	if err != nil {
-		return nil, false
-	}
-	return value, true
-
-}
-
 func (protocolHandler *ProtocolHandler) Exec(params [][]byte) (bool, string) {
 	switch {
 	case bytes.Equal(params[0], []byte("SET")):
@@ -153,6 +143,8 @@ func (protocolHandler *ProtocolHandler) Exec(params [][]byte) (bool, string) {
 		return protocolHandler.GET(params)
 	case bytes.Equal(params[0], []byte("SMEMBERS")):
 		return protocolHandler.SMEMBERS(params)
+	case bytes.Equal(params[0], []byte("SPOP")):
+		return protocolHandler.SPOP(params)
 	}
 	return false, ""
 }
@@ -194,61 +186,16 @@ func (protocolHandler *ProtocolHandler) SADD(params [][]byte) (ok bool, info str
 
 func (protocolHandler *ProtocolHandler) GET(params [][]byte) (bool, string) {
 	key := string(params[1])
-	item, err := protocolHandler.cacheTable.GetItem(key)
-	if err != nil {
-		fmt.Println(err)
-		return false, err.Error()
-	}
-	fmt.Println("get result before: ", item.data)
-	data, ok := item.data.(string)
-	if !ok {
-		errorInfo := key + "is not a string value type"
-		fmt.Println(errorInfo)
-		return false, errorInfo
-	}
-	return true, data
+	return protocolHandler.cacheTable.Get(key)
+
 }
 
 func (protocolHandler *ProtocolHandler) SMEMBERS(params [][]byte) (bool, string) {
 	key := string(params[1])
-	item, err := protocolHandler.cacheTable.GetItem(key)
-	if err != nil {
-		fmt.Println(err)
-		return false, err.Error()
-	}
-	data, ok := item.data.(map[string]*Empty)
-	if !ok {
-		errorInfo := key + " is not a set value type"
-		fmt.Println(errorInfo)
-		return false, errorInfo
-	}
-	keySet := make([]string, 0, len(data))
-	for k := range data {
-		keySet = append(keySet, k)
-	}
-	mjson, err := json.Marshal(keySet)
-	if err != nil {
-		fmt.Println("error:", err)
-	}
-	fmt.Println("get result: ", string(mjson))
-	return true, string(mjson)
+	return protocolHandler.cacheTable.SMEMBERS(key)
 }
 
 func (protocolHandler *ProtocolHandler) SPOP(params [][]byte) (bool, string) {
 	key := string(params[1])
-	item, err := protocolHandler.cacheTable.GetItem(key)
-	if err != nil {
-		fmt.Println(err)
-		return false, err.Error()
-	}
-	data, ok := item.data.(map[string]*Empty)
-	if !ok {
-		errorInfo := key + " is not a set value type"
-		fmt.Println(errorInfo)
-		return false, errorInfo
-	}
-	for k := range data {
-		return true, k
-	}
-	return false, ""
+	return protocolHandler.cacheTable.SPOP(key)
 }
