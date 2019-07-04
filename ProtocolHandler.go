@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 )
+
 var separatorBytes = []byte(" ")
 
 type ProtocolHandler struct {
@@ -24,7 +25,6 @@ func NewProtocolHandler(peerPicker PeerPicker, table *CacheTable) *ProtocolHandl
 	}
 }
 
-
 func (protocolHandler *ProtocolHandler) handle(connFd int) {
 	data := protocolHandler.readData(connFd)
 	if data != nil {
@@ -35,7 +35,12 @@ func (protocolHandler *ProtocolHandler) handle(connFd int) {
 			if !ok {
 				fmt.Println("cannot find key in other peer, will exec command in this peer")
 				ok, result := protocolHandler.Exec(params)
-				data := []byte(strconv.FormatBool(ok) + " " + result)
+				var data []byte
+				if result != "" {
+					data = []byte(strconv.FormatBool(ok) + " " + result)
+				} else {
+					data = []byte(strconv.FormatBool(ok))
+				}
 				protocolHandler.writeData(connFd, data)
 			} else {
 				fmt.Println("find peer", peer)
@@ -46,7 +51,7 @@ func (protocolHandler *ProtocolHandler) handle(connFd int) {
 	}
 }
 
-func (protocolHandler *ProtocolHandler)check() {
+func (protocolHandler *ProtocolHandler) check() {
 	for k, v := range protocolHandler.cacheTable.items {
 		fmt.Println("cache ", k, v.data)
 	}
@@ -55,7 +60,7 @@ func (protocolHandler *ProtocolHandler)check() {
 func ipToAddrByte(ip string) [4]byte {
 	bits := strings.Split(ip, ".")
 	var ipBytes [4]byte
-	for  i := 0; i < 4; i ++ {
+	for i := 0; i < 4; i++ {
 		field, _ := strconv.Atoi(bits[i])
 		ipBytes[i] = uint8(field)
 	}
@@ -70,7 +75,6 @@ func (protocolHandler *ProtocolHandler) transmit(connFd int, peer string, data [
 	address := syscall.SockaddrInet4{
 		Addr: ipToAddrByte(addrs[0]),
 		Port: port,
-
 	}
 	peerFd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)
 	if err != nil {
@@ -91,14 +95,14 @@ func (protocolHandler *ProtocolHandler) transmit(connFd int, peer string, data [
 //	|  4-byte  ||  N-byte
 //	---------------------------
 //	   size         data
-func (protocolHandler *ProtocolHandler) readData(connFd int) (data []byte){
+func (protocolHandler *ProtocolHandler) readData(connFd int) (data []byte) {
 	var lenSlice [4]byte
 	_, e := syscall.Read(connFd, lenSlice[:])
 	if e != nil {
 		fmt.Println(e)
 		return nil
 	}
-	size :=  int32(binary.BigEndian.Uint32(lenSlice[:]))
+	size := int32(binary.BigEndian.Uint32(lenSlice[:]))
 	fmt.Println("size:", size)
 	if size > 0 {
 		buf := make([]byte, size)
@@ -130,8 +134,7 @@ func (ProtocolHandler *ProtocolHandler) writeData(connFd int, data []byte) {
 	syscall.Write(connFd, buffer.Bytes())
 }
 
-
-func (protocolHandler *ProtocolHandler) lookupCache(key string) (interface{}, bool){
+func (protocolHandler *ProtocolHandler) lookupCache(key string) (interface{}, bool) {
 	value, err := protocolHandler.cacheTable.Get(key)
 	if err != nil {
 		return nil, false
@@ -140,8 +143,8 @@ func (protocolHandler *ProtocolHandler) lookupCache(key string) (interface{}, bo
 
 }
 
-func (protocolHandler *ProtocolHandler) Exec(params [][]byte) (bool, string){
-	switch  {
+func (protocolHandler *ProtocolHandler) Exec(params [][]byte) (bool, string) {
+	switch {
 	case bytes.Equal(params[0], []byte("SET")):
 		return protocolHandler.SET(params), ""
 	case bytes.Equal(params[0], []byte("SADD")):
@@ -153,7 +156,7 @@ func (protocolHandler *ProtocolHandler) Exec(params [][]byte) (bool, string){
 	return false, ""
 }
 
-func (protocolHandler *ProtocolHandler) SET(params [][]byte) (ok bool){
+func (protocolHandler *ProtocolHandler) SET(params [][]byte) (ok bool) {
 	key := string(params[1])
 	value := string(params[2])
 	newLifeSpan := time.Duration(0)
@@ -171,7 +174,7 @@ func (protocolHandler *ProtocolHandler) SET(params [][]byte) (ok bool){
 	return protocolHandler.cacheTable.Set(key, newLifeSpan, value)
 }
 
-func (protocolHandler *ProtocolHandler) SADD(params [][]byte) (ok bool){
+func (protocolHandler *ProtocolHandler) SADD(params [][]byte) (ok bool) {
 	key := string(params[1])
 	value := string(params[2])
 	newLifeSpan := time.Duration(0)
@@ -188,7 +191,7 @@ func (protocolHandler *ProtocolHandler) SADD(params [][]byte) (ok bool){
 	return protocolHandler.cacheTable.SAdd(key, newLifeSpan, value)
 }
 
-func (protocolHandler *ProtocolHandler) GET(params [][]byte) (bool, string){
+func (protocolHandler *ProtocolHandler) GET(params [][]byte) (bool, string) {
 	key := string(params[1])
 	item, err := protocolHandler.cacheTable.Get(key)
 	if err != nil {
@@ -196,10 +199,21 @@ func (protocolHandler *ProtocolHandler) GET(params [][]byte) (bool, string){
 		return false, ""
 	}
 	fmt.Println("get result before: ", item.data)
-	mjson, err := json.Marshal(item.data)
-	if err != nil {
-		fmt.Println("error:", err)
+	switch item.data.(type) {
+	case string:
+		return true, item.data.(string)
+	case map[string]*Empty:
+		data := item.data.(map[string]*Empty)
+		keySet := make([]string, 0, len(data))
+		for k := range data {
+			keySet = append(keySet, k)
+		}
+		mjson, err := json.Marshal(keySet)
+		if err != nil {
+			fmt.Println("error:", err)
+		}
+		fmt.Println("get result: ", string(mjson))
+		return true, string(mjson)
 	}
-	fmt.Println("get result: ", mjson)
-	return true, string(mjson)
+	return false, ""
 }
