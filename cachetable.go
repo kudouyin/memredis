@@ -44,7 +44,7 @@ func (table *CacheTable) Exists(key interface{}) bool {
 	return ok
 }
 
-func (table *CacheTable) Get(key interface{}, args ...interface{}) (*CacheItem, error) {
+func (table *CacheTable) GetItem(key interface{}, args ...interface{}) (*CacheItem, error) {
 	table.RLock()
 	r, ok := table.items[key]
 	table.RUnlock()
@@ -60,14 +60,14 @@ func (table *CacheTable) Get(key interface{}, args ...interface{}) (*CacheItem, 
 	return nil, ErrKeyNotFound
 }
 
-func (table *CacheTable) Set(key string,  lifeSpan time.Duration, data interface{}) (ok bool){
+func (table *CacheTable) Set(key string,  lifeSpan time.Duration, data interface{}) (ok bool, info string){
 	table.Lock()
 	item, ok := table.items[key]
 	if !ok {
 		item = NewCacheStringItem(key, lifeSpan, data)
 	}else{
 		if(item.itemType != ItemType_STRING) {
-			return false
+			return false, "类型不匹配"
 		}
 		item.lifeSpan = lifeSpan
 		item.data = data
@@ -76,17 +76,17 @@ func (table *CacheTable) Set(key string,  lifeSpan time.Duration, data interface
 	table.items[key] = item
 	table.Unlock()
 
-	return true
+	return true, ""
 }
 
-func (table *CacheTable) SAdd(key string, lifeSpan time.Duration, data string)(ok bool) {
+func (table *CacheTable) SAdd(key string, lifeSpan time.Duration, data string)(ok bool, info string) {
 	table.Lock()
 	item, ok := table.items[key]
 	if !ok {
 		item = NewCacheSetItem(key, lifeSpan, data)
 	}else{
 		if(item.itemType != ItemType_SET){
-			return false
+			return false, "类型不匹配"
 		}
 		item.lifeSpan = lifeSpan
 		dataMap := item.data.(map[string]*Empty)
@@ -96,7 +96,7 @@ func (table *CacheTable) SAdd(key string, lifeSpan time.Duration, data string)(o
 	table.items[key] = item
 	table.Unlock()
 
-	return true
+	return true, ""
 
 }
 

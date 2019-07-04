@@ -69,7 +69,9 @@ func TestProtocolHandler_SET(t *testing.T) {
 	command = []byte("GET name")
 	writeData(conn, command)
 	buf = readData(conn)
-	if string(buf) != "false" {
+	fmt.Println("buf:", string(buf))
+	ok = bytes.Split(buf, separatorBytes)[0]
+	if string(ok) != "false" {
 		t.Error("GET again error")
 	}
 }
@@ -86,13 +88,13 @@ func TestProtocolHandler_SADD(t *testing.T) {
 		t.Error("SADD error")
 	}
 
-	command = []byte("GET names")
+	command = []byte("SMEMBERS names")
 	writeData(conn, command)
 	buf := readData(conn)
 	fmt.Println(string(buf))
 	ok = bytes.Split(buf, separatorBytes)[0]
 	if string(ok) != "true" {
-		t.Error("GET error")
+		t.Error("SMEMBERS error")
 	} else {
 		result := bytes.Split(buf, separatorBytes)[1]
 		fmt.Println(string(result))
@@ -100,7 +102,7 @@ func TestProtocolHandler_SADD(t *testing.T) {
 		json.Unmarshal(result, &resultList)
 		fmt.Println(resultList)
 		if resultList[0] != "jack" {
-			t.Error("GET value ERROR")
+			t.Error("SMEMBERS value ERROR")
 		}
 	}
 
@@ -111,13 +113,13 @@ func TestProtocolHandler_SADD(t *testing.T) {
 		t.Error("SADD error")
 	}
 
-	command = []byte("GET names")
+	command = []byte("SMEMBERS names")
 	writeData(conn, command)
 	buf = readData(conn)
 	fmt.Println(string(buf))
 	ok = bytes.Split(buf, separatorBytes)[0]
 	if string(ok) != "true" {
-		t.Error("GET error")
+		t.Error("SMEMBERS error")
 	} else {
 		result := bytes.Split(buf, separatorBytes)[1]
 		fmt.Println(string(result))
@@ -125,7 +127,7 @@ func TestProtocolHandler_SADD(t *testing.T) {
 		json.Unmarshal(result, &resultList)
 		fmt.Println(resultList)
 		if resultList[0] != "jack" || resultList[1] != "tony" {
-			t.Error("GET value ERROR")
+			t.Error("SMEMBERS value ERROR")
 		}
 	}
 

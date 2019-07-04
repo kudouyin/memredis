@@ -135,7 +135,7 @@ func (ProtocolHandler *ProtocolHandler) writeData(connFd int, data []byte) {
 }
 
 func (protocolHandler *ProtocolHandler) lookupCache(key string) (interface{}, bool) {
-	value, err := protocolHandler.cacheTable.Get(key)
+	value, err := protocolHandler.cacheTable.GetItem(key)
 	if err != nil {
 		return nil, false
 	}
@@ -146,17 +146,18 @@ func (protocolHandler *ProtocolHandler) lookupCache(key string) (interface{}, bo
 func (protocolHandler *ProtocolHandler) Exec(params [][]byte) (bool, string) {
 	switch {
 	case bytes.Equal(params[0], []byte("SET")):
-		return protocolHandler.SET(params), ""
+		return protocolHandler.SET(params)
 	case bytes.Equal(params[0], []byte("SADD")):
-		return protocolHandler.SADD(params), ""
+		return protocolHandler.SADD(params)
 	case bytes.Equal(params[0], []byte("GET")):
 		return protocolHandler.GET(params)
-
+	case bytes.Equal(params[0], []byte("SMEMBERS")):
+		return protocolHandler.SMEMBERS(params)
 	}
 	return false, ""
 }
 
-func (protocolHandler *ProtocolHandler) SET(params [][]byte) (ok bool) {
+func (protocolHandler *ProtocolHandler) SET(params [][]byte) (ok bool, info string) {
 	key := string(params[1])
 	value := string(params[2])
 	newLifeSpan := time.Duration(0)
@@ -165,7 +166,7 @@ func (protocolHandler *ProtocolHandler) SET(params [][]byte) (ok bool) {
 		lifeSpan, err := strconv.Atoi(string(params[3]))
 		if err != nil {
 			fmt.Println("参数转换错误")
-			return false
+			return false, "参数错误"
 		}
 		newLifeSpan = time.Duration(lifeSpan) * time.Second
 	}
@@ -174,7 +175,7 @@ func (protocolHandler *ProtocolHandler) SET(params [][]byte) (ok bool) {
 	return protocolHandler.cacheTable.Set(key, newLifeSpan, value)
 }
 
-func (protocolHandler *ProtocolHandler) SADD(params [][]byte) (ok bool) {
+func (protocolHandler *ProtocolHandler) SADD(params [][]byte) (ok bool, info string) {
 	key := string(params[1])
 	value := string(params[2])
 	newLifeSpan := time.Duration(0)
@@ -182,7 +183,7 @@ func (protocolHandler *ProtocolHandler) SADD(params [][]byte) (ok bool) {
 		lifeSpan, err := strconv.Atoi(string(params[3]))
 		if err != nil {
 			fmt.Println("参数转换错误")
-			return false
+			return false, "参数错误"
 		}
 		newLifeSpan = time.Duration(lifeSpan) * time.Second
 	}
@@ -193,27 +194,61 @@ func (protocolHandler *ProtocolHandler) SADD(params [][]byte) (ok bool) {
 
 func (protocolHandler *ProtocolHandler) GET(params [][]byte) (bool, string) {
 	key := string(params[1])
-	item, err := protocolHandler.cacheTable.Get(key)
+	item, err := protocolHandler.cacheTable.GetItem(key)
 	if err != nil {
 		fmt.Println(err)
-		return false, ""
+		return false, err.Error()
 	}
 	fmt.Println("get result before: ", item.data)
-	switch item.data.(type) {
-	case string:
-		return true, item.data.(string)
-	case map[string]*Empty:
-		data := item.data.(map[string]*Empty)
-		keySet := make([]string, 0, len(data))
-		for k := range data {
-			keySet = append(keySet, k)
-		}
-		mjson, err := json.Marshal(keySet)
-		if err != nil {
-			fmt.Println("error:", err)
-		}
-		fmt.Println("get result: ", string(mjson))
-		return true, string(mjson)
+	data, ok := item.data.(string)
+	if !ok {
+		errorInfo := key + "is not a string value type"
+		fmt.Println(errorInfo)
+		return false, errorInfo
+	}
+	return true, data
+}
+
+func (protocolHandler *ProtocolHandler) SMEMBERS(params [][]byte) (bool, string) {
+	key := string(params[1])
+	item, err := protocolHandler.cacheTable.GetItem(key)
+	if err != nil {
+		fmt.Println(err)
+		return false, err.Error()
+	}
+	data, ok := item.data.(map[string]*Empty)
+	if !ok {
+		errorInfo := key + " is not a set value type"
+		fmt.Println(errorInfo)
+		return false, errorInfo
+	}
+	keySet := make([]string, 0, len(data))
+	for k := range data {
+		keySet = append(keySet, k)
+	}
+	mjson, err := json.Marshal(keySet)
+	if err != nil {
+		fmt.Println("error:", err)
+	}
+	fmt.Println("get result: ", string(mjson))
+	return true, string(mjson)
+}
+
+func (protocolHandler *ProtocolHandler) SPOP(params [][]byte) (bool, string) {
+	key := string(params[1])
+	item, err := protocolHandler.cacheTable.GetItem(key)
+	if err != nil {
+		fmt.Println(err)
+		return false, err.Error()
+	}
+	data, ok := item.data.(map[string]*Empty)
+	if !ok {
+		errorInfo := key + " is not a set value type"
+		fmt.Println(errorInfo)
+		return false, errorInfo
+	}
+	for k := range data {
+		return true, k
 	}
 	return false, ""
 }
