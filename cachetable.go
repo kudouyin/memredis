@@ -146,7 +146,7 @@ func (table *CacheTable) expirationCheckAll() {
 }
 
 
-
+// string type command
 func (table *CacheTable) Set(key string,  lifeSpan time.Duration, data interface{}) (ok bool, info string){
 	table.Lock()
 	defer table.Unlock()
@@ -163,6 +163,18 @@ func (table *CacheTable) Set(key string,  lifeSpan time.Duration, data interface
 	}
 	table.items[key] = item
 
+	return true, ""
+}
+
+func (table *CacheTable) SETNX(key string, value interface{}) (bool, string){
+	table.Lock()
+	defer table.Unlock()
+	item, ok := table.items[key]
+	if !ok {
+		item = NewCacheStringItem(key, 0, value)
+		table.items[key] = item
+		return true, ""
+	}
 	return true, ""
 }
 
@@ -184,6 +196,7 @@ func (table *CacheTable) Get(key string) (bool, string) {
 	return true, data
 }
 
+// set type command
 func (table *CacheTable) SAdd(key string, lifeSpan time.Duration, data string)(ok bool, info string) {
 	table.Lock()
 	defer table.Unlock()

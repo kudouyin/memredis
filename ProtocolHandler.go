@@ -137,10 +137,12 @@ func (protocolHandler *ProtocolHandler) Exec(params [][]byte) (bool, string) {
 	switch {
 	case bytes.Equal(params[0], []byte("SET")):
 		return protocolHandler.SET(params)
-	case bytes.Equal(params[0], []byte("SADD")):
-		return protocolHandler.SADD(params)
+	case bytes.Equal(params[0], []byte("SETNX")):
+		return protocolHandler.SETNX(params)
 	case bytes.Equal(params[0], []byte("GET")):
 		return protocolHandler.GET(params)
+	case bytes.Equal(params[0], []byte("SADD")):
+		return protocolHandler.SADD(params)
 	case bytes.Equal(params[0], []byte("SMEMBERS")):
 		return protocolHandler.SMEMBERS(params)
 	case bytes.Equal(params[0], []byte("SPOP")):
@@ -187,6 +189,13 @@ func (protocolHandler *ProtocolHandler) SADD(params [][]byte) (ok bool, info str
 func (protocolHandler *ProtocolHandler) GET(params [][]byte) (bool, string) {
 	key := string(params[1])
 	return protocolHandler.cacheTable.Get(key)
+
+}
+
+func (protocolHandler *ProtocolHandler) SETNX(params [][]byte) (bool, string) {
+	key := string(params[1])
+	value := string(params[2])
+	return protocolHandler.cacheTable.SETNX(key, value)
 
 }
 
